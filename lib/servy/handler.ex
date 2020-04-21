@@ -1,5 +1,6 @@
 defmodule Servy.Handler do
   @moduledoc "handle http request"
+  alias Servy.Conv
 
   @pages_dir_path Path.expand("../../pages", __DIR__)
 
@@ -27,22 +28,22 @@ defmodule Servy.Handler do
   # step 8
   # to catch any other requests that we want to serve /wildthings we need to catch the request before
   # it hits route in the main pipline!
-  def route(%{method: "GET", path: "/wildthings"} = conv) do
+  def route(%Conv{method: "GET", path: "/wildthings"} = conv) do
     %{conv | status: 200, resp_body: "Lions, Tigers, Bears"}
   end
 
   # bears route
-  def route(%{method: "GET", path: "/bears"} = conv) do
+  def route(%Conv{method: "GET", path: "/bears"} = conv) do
     %{conv | status: 200, resp_body: "Brown, Black, Moon"}
   end
 
   # lions route
-  def route(%{method: "GET", path: "/lions"} = conv) do
+  def route(%Conv{method: "GET", path: "/lions"} = conv) do
     %{conv | status: 200, resp_body: "leo, Ghost, Darkness"}
   end
 
   # read file form using CASE
-  def route(%{method: "GET", path: "/bears/new"} = conv) do
+  def route(%Conv{method: "GET", path: "/bears/new"} = conv) do
     @pages_dir_path
     # we then need to concatenate the path with the file name
     |> Path.join("form.html")
@@ -53,7 +54,7 @@ defmodule Servy.Handler do
   end
 
   # read about file
-  def route(%{method: "GET", path: "/about"} = conv) do
+  def route(%Conv{method: "GET", path: "/about"} = conv) do
     # we need to get absolute file path to the directory that our file is in.
     # this means we need the ABS path to the "/pages" directory. So, we use the Path.expand function
     # on the path to "pages" relative to this file's loction
@@ -69,17 +70,30 @@ defmodule Servy.Handler do
   end
 
   # route for pattern matching specific animal ex. "bears/1"
-  def route(%{method: "GET", path: "/bears/" <> id} = conv) do
+  def route(%Conv{method: "GET", path: "/bears/" <> id} = conv) do
     %{conv | status: 200, resp_body: "Requested Bear #{id}"}
   end
 
   # route for pattern matching DELETE request"
-  def route(%{method: "DELETE", path: "/bears/" <> id} = conv) do
+  def route(%Conv{method: "DELETE", path: "/bears/" <> id} = conv) do
     %{conv | status: 403, resp_body: "CANNOT Deleted Bear #{id}"}
   end
 
+  # POST route for new bear
+  def route(%Conv{method: "POST", path: "/bears"} = conv) do
+    # goal here is to parse the last line of the POST parameters map into something that looks like:
+    # params = %{"name" => "the name", "type" => "the type"}
+
+    %{
+      conv
+      | status: 201,
+        resp_body:
+          "New bear called: #{conv.params["name"]} of type: #{conv.params["type"]} created!"
+    }
+  end
+
   # 404 route. Catch-all routes should be declared LAST in order!
-  def route(%{path: path} = conv) do
+  def route(%Conv{path: path} = conv) do
     %{conv | status: 404, resp_body: "No #{path} Found!"}
   end
 
@@ -87,8 +101,8 @@ defmodule Servy.Handler do
   EMOJI FUNCTIONS
   '''
 
-  def emojify(%{status: 200, resp_body: resp_body} = conv) do
-    %{conv | resp_body: "(_(_)=D " <> resp_body <> " (_(_)=D"}
+  def emojify(%Conv{status: 200, resp_body: resp_body} = conv) do
+    %{conv | resp_body: "-----> " <> resp_body <> " <-----"}
   end
 
   def emojify(conv), do: conv
@@ -97,26 +111,15 @@ defmodule Servy.Handler do
   FORMAT_RESPONSE FUNCTION
   '''
 
-  def format_response(conv) do
+  def format_response(%Conv{} = conv) do
+    # {conv.protocol} #{conv.status} #{status_reason(conv.status)}
     """
-    #{conv.version} #{conv.status} #{status_reason(conv.status)}
+    #{Conv.full_status(conv)}
     Content-Type: text/html
     Content-Length: #{String.length(conv.resp_body)}
 
     #{conv.resp_body}
     """
-  end
-
-  # declare private that can only be called in module they're defined in
-  defp status_reason(code) do
-    %{
-      200 => "OK",
-      201 => "Created",
-      401 => "Unauthorized",
-      403 => "Forbidden",
-      404 => "Not Found",
-      500 => "Internal Server Error"
-    }[code]
   end
 end
 
@@ -252,4 +255,20 @@ Accept: */*
 """
 
 response = Servy.Handler.handle(request)
+IO.puts(response)
+
+# -------------Mock POST request--------------
+request = """
+POST /bears HTTP/1.1
+Host: example.com
+User-Agent: ExampleBrowser/1.0
+Accept: */*
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 21
+
+name=Smokey&type=Brown
+"""
+
+response = Servy.Handler.handle(request)
+
 IO.puts(response)
