@@ -33,7 +33,7 @@ defmodule Servy.Parser do
     # put headers into map
     headers = parse_headers(header_lines, %{})
 
-    params = parse_params(params_string)
+    params = parse_params(headers["Content-Type"], params_string)
     IO.inspect(headers)
 
     # dont need field for status & resp_body because they are defined in the struct definition in conv.ex
@@ -41,13 +41,22 @@ defmodule Servy.Parser do
   end
 
   '''
-  function to decode params
+  function to decode params when Content-Type is "application/x-www-form-urlencoded"
   '''
 
-  def parse_params(params_string) do
+  def parse_params("application/x-www-form-urlencoded", params_string) do
     # first - trim newline off string
     # second - run decode query which will return a map of the params
     params_string |> String.trim() |> URI.decode_query()
+  end
+
+  '''
+  default to decode params when Content-Type is anything else
+  '''
+
+  def parse_params(_, _) do
+    # return empty map
+    %{}
   end
 
   '''
