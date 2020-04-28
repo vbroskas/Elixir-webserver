@@ -26,3 +26,24 @@ end
 # IO.inspect(Recurse.triple([1, 2, 3, 4, 5], []))
 
 IO.inspect(Recurse.my_maps([1, 2, 3, 4, 5], &(&1 * 4)))
+
+ranks = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
+
+suits = ["♣", "♦", "♥", "♠"]
+
+deck = for rank <- ranks, suit <- suits, do: {rank, suit}
+
+# IO.inspect(deck)
+
+# delt = Enum.take_random(deck, 13)
+# IO.inspect(delt)
+
+# for i <- 0..3, do: deck
+
+for i <- 1..3,
+    i > 0,
+    do:
+      deck
+      |> Enum.shuffle()
+      |> Enum.take_random(5)
+      |> IO.inspect()

@@ -121,29 +121,29 @@ end
 
 # -------------first request--------------
 
-# request = """
-# GET /wildthings HTTP/1.1
-# Host: example.com
-# User-Agent: exampleBrowser/1.0
-# Accept: */*
+request = """
+GET /wildthings HTTP/1.1
+Host: example.com
+User-Agent: exampleBrowser/1.0
+Accept: */*
 
-# """
+"""
 
-# response = Servy.Handler.handle(request)
-# IO.puts(response)
+response = Servy.Handler.handle(request)
+IO.puts(response)
 
 # -------------second request--------------
 
-# request = """
-# GET /bears HTTP/1.1
-# Host: example.com
-# User-Agent: exampleBrowser/1.0
-# Accept: */*
+request = """
+GET /bears HTTP/1.1
+Host: example.com
+User-Agent: exampleBrowser/1.0
+Accept: */*
 
-# """
+"""
 
-# response = Servy.Handler.handle(request)
-# IO.puts(response)
+response = Servy.Handler.handle(request)
+IO.puts(response)
 
 # -------------third request--------------
 
@@ -186,16 +186,16 @@ IO.puts(response)
 
 # -------------specific bear request--------------
 
-request = """
-DELETE /bears/1 HTTP/1.1
-Host: example.com
-User-Agent: exampleBrowser/1.0
-Accept: */*
+# request = """
+# DELETE /bears/1 HTTP/1.1
+# Host: example.com
+# User-Agent: exampleBrowser/1.0
+# Accept: */*
 
-"""
+# """
 
-response = Servy.Handler.handle(request)
-IO.puts(response)
+# response = Servy.Handler.handle(request)
+# IO.puts(response)
 
 # -------------TRANSFORMATION request--------------
 # to do this we will need to pattern match on a map
@@ -254,17 +254,17 @@ IO.puts(response)
 # IO.puts(response)
 
 # -------------Mock POST request--------------
-# request = """
-# POST /bears HTTP/1.1
-# Host: example.com
-# User-Agent: ExampleBrowser/1.0
-# Accept: */*
-# Content-Type: application/x-www-form-urlencoded
-# Content-Length: 21
+request = """
+POST /bears HTTP/1.1
+Host: example.com
+User-Agent: ExampleBrowser/1.0
+Accept: */*
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 21
 
-# name=Smokey&type=Brown
-# """
+name=Smokey&type=Brown
+"""
 
-# response = Servy.Handler.handle(request)
+response = Servy.Handler.handle(request)
 
-# IO.puts(response)
+IO.puts(response)
