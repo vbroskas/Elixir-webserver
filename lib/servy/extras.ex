@@ -40,6 +40,8 @@ deck = for rank <- ranks, suit <- suits, do: {rank, suit}
 
 # for i <- 0..3, do: deck
 
+1..3 |> Enum.map(fn _ -> IO.puts("hello") end)
+
 for i <- 1..3,
     i > 0,
     do:

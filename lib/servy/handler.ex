@@ -18,8 +18,24 @@ defmodule Servy.Handler do
     |> route
     # Every time we get a 404, lets log the missing path
     |> track
-    |> emojify
+    |> put_resp_content_length
+    # |> emojify
     |> format_response
+  end
+
+  def format_response_headers(conv) do
+    Enum.map(conv.resp_headers, fn {k, v} -> "#{k}: #{v}\r\n" end) |> Enum.sort() |> Enum.join("")
+
+    # USING COMPREHENSION
+    # for {key, value} <- conv.resp_headers do
+    #   "#{key}: #{value}\r"
+    # end |> Enum.sort |> Enum.reverse |> Enum.join("\n")
+  end
+
+  def put_resp_content_length(conv) do
+    length = String.length(conv.resp_body)
+    headers = Map.put(conv.resp_headers, "content_length", length)
+    %{conv | resp_headers: headers}
   end
 
   '''
@@ -30,12 +46,23 @@ defmodule Servy.Handler do
   # to catch any other requests that we want to serve /wildthings we need to catch the request before
   # it hits route in the main pipline!
   def route(%Conv{method: "GET", path: "/wildthings"} = conv) do
-    BearController.index(conv)
+    %{conv | status: 200, resp_body: "Lions, Tigers, Bears"}
+  end
+
+  def route(%Conv{method: "POST", path: "/api/bears"} = conv) do
+    # %{conv | status: 200, resp_body: "Brown, Black, Moon"}
+    Servy.Api.BearController.create(conv, conv.params)
+  end
+
+  def route(%Conv{method: "GET", path: "/api/bears"} = conv) do
+    # %{conv | status: 200, resp_body: "Brown, Black, Moon"}
+    Servy.Api.BearController.index(conv)
   end
 
   # bears route
   def route(%Conv{method: "GET", path: "/bears"} = conv) do
-    %{conv | status: 200, resp_body: "Brown, Black, Moon"}
+    # %{conv | status: 200, resp_body: "Brown, Black, Moon"}
+    BearController.index(conv)
   end
 
   # lions route
@@ -110,161 +137,11 @@ defmodule Servy.Handler do
   def format_response(%Conv{} = conv) do
     # {conv.protocol} #{conv.status} #{status_reason(conv.status)}
     """
-    #{Conv.full_status(conv)}
-    Content-Type: text/html
-    Content-Length: #{String.length(conv.resp_body)}
-
+    #{Conv.full_status(conv)}\r
+    Content-Type: #{conv.resp_headers["content_type"]}\r
+    Content-Length: #{conv.resp_headers["content_length"]}\r
+    \r
     #{conv.resp_body}
     """
   end
 end
-
-# -------------first request--------------
-
-request = """
-GET /wildthings HTTP/1.1
-Host: example.com
-User-Agent: exampleBrowser/1.0
-Accept: */*
-
-"""
-
-response = Servy.Handler.handle(request)
-IO.puts(response)
-
-# -------------second request--------------
-
-request = """
-GET /bears HTTP/1.1
-Host: example.com
-User-Agent: exampleBrowser/1.0
-Accept: */*
-
-"""
-
-response = Servy.Handler.handle(request)
-IO.puts(response)
-
-# -------------third request--------------
-
-# request = """
-# GET /lions HTTP/1.1
-# Host: example.com
-# User-Agent: exampleBrowser/1.0
-# Accept: */*
-
-# """
-
-# response = Servy.Handler.handle(request)
-# IO.puts(response)
-
-# -------------Bad request--------------
-
-# request = """
-# GET /wolf HTTP/1.1
-# Host: example.com
-# User-Agent: exampleBrowser/1.0
-# Accept: */*
-
-# """
-
-# response = Servy.Handler.handle(request)
-# IO.puts(response)
-
-# -------------specific bear request--------------
-
-request = """
-GET /bears/1 HTTP/1.1
-Host: example.com
-User-Agent: exampleBrowser/1.0
-Accept: */*
-
-"""
-
-response = Servy.Handler.handle(request)
-IO.puts(response)
-
-# -------------specific bear request--------------
-
-# request = """
-# DELETE /bears/1 HTTP/1.1
-# Host: example.com
-# User-Agent: exampleBrowser/1.0
-# Accept: */*
-
-# """
-
-# response = Servy.Handler.handle(request)
-# IO.puts(response)
-
-# -------------TRANSFORMATION request--------------
-# to do this we will need to pattern match on a map
-
-# in this case we want the request for "wildlife" to be handled by the
-# function that catches "/wildthings"
-
-# request = """
-# GET /wildlife HTTP/1.1
-# Host: example.com
-# User-Agent: exampleBrowser/1.0
-# Accept: */*
-
-# """
-
-# response = Servy.Handler.handle(request)
-# IO.puts(response)
-
-# -------------test rewrite request--------------
-
-# request = """
-# GET /bears?id=1 HTTP/1.1
-# Host: example.com
-# User-Agent: exampleBrowser/1.0
-# Accept: */*
-
-# """
-
-# response = Servy.Handler.handle(request)
-# IO.puts(response)
-
-# -------------Read file request--------------
-
-# request = """
-# GET /about HTTP/1.1
-# Host: example.com
-# User-Agent: exampleBrowser/1.0
-# Accept: */*
-
-# """
-
-# response = Servy.Handler.handle(request)
-# IO.puts(response)
-
-# -------------Read Form page request--------------
-
-# request = """
-# GET /bears/new HTTP/1.1
-# Host: example.com
-# User-Agent: ExampleBrowser/1.0
-# Accept: */*
-
-# """
-
-# response = Servy.Handler.handle(request)
-# IO.puts(response)
-
-# -------------Mock POST request--------------
-request = """
-POST /bears HTTP/1.1
-Host: example.com
-User-Agent: ExampleBrowser/1.0
-Accept: */*
-Content-Type: application/x-www-form-urlencoded
-Content-Length: 21
-
-name=Smokey&type=Brown
-"""
-
-response = Servy.Handler.handle(request)
-
-IO.puts(response)

@@ -1,11 +1,4 @@
 <h1> ALL DA BEARS </h1>
-<h1> ALL DA BEARS </h1>
-<h1> ALL DA BEARS </h1>
-<h1> ALL DA BEARS </h1>
-<h1> ALL DA BEARS </h1>
-<h1> ALL DA BEARS </h1>
-<h1> ALL DA BEARS </h1>
-<h1> ALL DA BEARS </h1>
-<h1> ALL DA BEARS </h1>
+
 
 <%= inspect(bears) %>

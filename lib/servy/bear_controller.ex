@@ -1,8 +1,7 @@
 defmodule Servy.BearController do
   alias Servy.Wildthings
   alias Servy.Bear
-
-  @template_dir_path Path.expand("../../templates", __DIR__)
+  import Servy.View, only: [render: 3]
 
   def index(conv) do
     # get and display list of bears
@@ -12,18 +11,13 @@ defmodule Servy.BearController do
       |> Enum.sort(&Bear.bear_asc_by_name(&1, &2))
 
     # create content from templates to attach to response body
-    content =
-      @template_dir_path
-      |> Path.join("index.eex")
-      |> EEx.eval_file(bears: bears)
-
-    %{conv | status: 200, resp_body: content}
+    render(conv, "index.eex", bears: bears)
   end
 
   def show(conv, %{"id" => id}) do
     bear = Wildthings.get_bear(id)
 
-    %{conv | status: 200, resp_body: "<h1>Bear called: #{bear.name} with ID: #{bear.id}</h1>"}
+    render(conv, "show.eex", bear: bear)
   end
 
   def create(conv, %{"name" => name, "type" => type}) do

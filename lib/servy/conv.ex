@@ -8,7 +8,8 @@ defmodule Servy.Conv do
             status: nil,
             protocol: "",
             params: %{},
-            headers: %{}
+            headers: %{},
+            resp_headers: %{}
 
   def full_status(conv) do
     "#{conv.protocol} #{conv.status} #{status_reason(conv.status)}"

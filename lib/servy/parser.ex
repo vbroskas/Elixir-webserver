@@ -5,6 +5,18 @@ defmodule Servy.Parser do
   PARSE
   '''
 
+  @moduledoc """
+  Parse the given param string of the form 'key1=values1&key2=values2'
+  into a map with corresponding keys and values
+
+  ## Examples
+      iex> params_string = "name=bobby&type=brown"
+      iex> Servy.Parser.parse_params("application/x-www-form-urlencoded", params_string)
+      %{"name" => "bobby", "type" => "brown"}
+      iex> Servy.Parser.parse_params("multipart/form-data", params_string)
+      %{}
+  """
+
   # request = """
   #   POST /bears HTTP/1.1
   #   Host: example.com
@@ -23,9 +35,9 @@ defmodule Servy.Parser do
     # 3- the last line which is the params string
 
     # first we split the request on a double newline (\n\n) which seperates the bottom line (params) from everything above it - returns list with 2 elements which we can pattern match on
-    [top, params_string] = String.split(request, "\n\n")
+    [top, params_string] = String.split(request, "\r\n\r\n")
 
-    [request_line | header_lines] = String.split(top, "\n")
+    [request_line | header_lines] = String.split(top, "\r\n")
 
     # split request_line and pattern match variables to it
     [method, path, protocol] = String.split(request_line, " ")
@@ -48,6 +60,10 @@ defmodule Servy.Parser do
     # first - trim newline off string
     # second - run decode query which will return a map of the params
     params_string |> String.trim() |> URI.decode_query()
+  end
+
+  def parse_params("application/json", params_string) do
+    Poison.Parser.parse!(params_string, %{})
   end
 
   '''
@@ -76,6 +92,8 @@ defmodule Servy.Parser do
   '''
 
   def parse_headers(header_lines) do
+    # this is using reduce/3. Takes in list, initial value for the accumulator, and then a lambda function.
+    # whatever happens in the lambda function is then returned as the new value for acc. In this case Map.put returns a Map
     Enum.reduce(header_lines, %{}, fn x, acc ->
       [key, value] = String.split(x, ": ")
       Map.put(acc, key, value)

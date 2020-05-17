@@ -33,7 +33,13 @@ defmodule Servy.Plugins do
   '''
 
   # SINGLE LINE FUNC, this will print the map
-  def log(%Conv{} = conv), do: IO.inspect(conv)
+  def log(%Conv{} = conv) do
+    if Mix.env() == :dev do
+      IO.inspect(conv)
+    end
+
+    conv
+  end
 
   '''
   TRACK FUNCTIONS
@@ -41,7 +47,10 @@ defmodule Servy.Plugins do
 
   # this function will match a 404 status code and extract the path
   def track(%Conv{status: 404, path: path} = conv) do
-    IO.puts("Warning we have found a new path: #{path}")
+    if Mix.env() != :test do
+      IO.puts("Warning we have found a new path: #{path}")
+    end
+
     conv
   end
 
