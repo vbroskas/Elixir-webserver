@@ -1,0 +1,13 @@
+<h1> Sensors Page</h1>
+
+<ul>
+	<%= for snapshot <- snapshots do %>
+	<li><img src="<%= snapshot %>" alt="snapshot"></li>
+</ul>
+
+<h3>Animal locations</h3>
+
+<ul>
+	<%= for animal_location <- animal_locations do %>
+	<li>animal_location</li>
+</ul>

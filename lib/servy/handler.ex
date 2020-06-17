@@ -2,19 +2,23 @@ defmodule Servy.Handler do
   @moduledoc "handle http request"
   alias Servy.Conv
   alias Servy.BearController
+  alias Servy.VideoCam
+  alias Servy.Fetch
+  alias Servy.Tracker
 
   @pages_dir_path Path.expand("../../pages", __DIR__)
 
   import Servy.Plugins, only: [rewrite_path: 1, log: 1, track: 1]
   import Servy.Parser, only: [parse: 1]
   import Servy.FileHandler, only: [handle_file: 2]
+  import Servy.View
 
   def handle(request) do
     request
     |> parse
     # this will catch any extraneous requests we still want to serve
     |> rewrite_path
-    |> log
+    # |> log
     |> route
     # Every time we get a 404, lets log the missing path
     |> track
@@ -42,9 +46,42 @@ defmodule Servy.Handler do
   ROUTE FUNCTIONS
   '''
 
-  # step 8
-  # to catch any other requests that we want to serve /wildthings we need to catch the request before
-  # it hits route in the main pipline!
+  def route(%Conv{method: "GET", path: "/sensors"} = conv) do
+    # list of animals
+    animal_locations =
+      ["animal1", "animal2", "animal3", "animal4", "animal5"]
+      |> Enum.map(&Task.async(fn -> Tracker.get_location(&1) end))
+      # get msg for each PID that is returned by Task.async
+      |> Enum.map(&Task.await(&1))
+
+    # Task.async(fun) and Task.await(task) are the built in versions of our Fetch.asynch(fun) and Fetch.get_msg(pid)
+    # animal1_task_struct = Task.async(fn -> Servy.Tracker.get_location("animal1") end)
+
+    # list of camera names
+    snapshots =
+      ["cam1", "cam2", "cam3", "cam4", "cam5"]
+      |> Enum.map(&Task.async(fn -> VideoCam.get_snapshot(&1) end))
+      # get msg for each PID that is returned by Fetch.asynch(fun)
+      |> Enum.map(&Task.await(&1))
+
+    # animal_location = Task.await(animal1_task_struct)
+
+    %{conv | status: 200, resp_body: inspect({snapshots, animal_locations})}
+
+    render(conv, "sensors.eex", snapshots: snapshots, animal_locations: animal_locations)
+  end
+
+  def route(%Conv{method: "GET", path: "/broken"} = conv) do
+    raise "BROKEN!"
+  end
+
+  def route(%Conv{method: "GET", path: "/hibernate/" <> time} = conv) do
+    # :timer is an erlang module
+    time |> String.to_integer() |> :timer.sleep()
+
+    %{conv | status: 200, resp_body: "awake!"}
+  end
+
   def route(%Conv{method: "GET", path: "/wildthings"} = conv) do
     %{conv | status: 200, resp_body: "Lions, Tigers, Bears"}
   end

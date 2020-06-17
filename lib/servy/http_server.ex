@@ -1,6 +1,7 @@
 defmodule Servy.HttpServer do
   @doc """
   starts our server on localhost port
+  in IEX call: Servy.HttpServer.start(4000) to start mock server
   """
 
   # ports 0 - 1023 are reserved for the operating system!
@@ -9,13 +10,13 @@ defmodule Servy.HttpServer do
     # listen_socket will be bound to the listening socket
 
     {:ok, listen_socket} =
-      :gen_tcp.listen(port, [:binary, packet: :raw, active: false, reuse_address: true])
+      :gen_tcp.listen(port, [:binary, packet: :raw, active: false, reuseaddr: true])
 
     # socket options:
     # :binary - open the socket in binary mode and deliver data as binaries
     # packet: :raw - deliver the entire binary without any packet handling
     # active: false - receive data when ready by calling :gen_tcp.recv/2
-    # reuse_address: true allows reusing the address if the listener crashes
+    # reuseaddr: true allows reusing the address if the listener crashes
 
     IO.puts("\n Listening for a connection request on port #{port}...\n")
 
@@ -32,8 +33,9 @@ defmodule Servy.HttpServer do
     {:ok, client_socket} = :gen_tcp.accept(listen_socket)
     IO.puts("connection has been accepted")
 
-    # receives the request and sends a response over the client socket
-    serve(client_socket)
+    # receives request and sends a response over the client socket
+    # we're using spawn to run the serve process asynchronously
+    spawn(fn -> serve(client_socket) end)
 
     # loop back to wait for next connection
     accept_loop(listen_socket)
@@ -44,15 +46,20 @@ defmodule Servy.HttpServer do
   sends a response back over that same socket
   """
   def serve(client_socket) do
+    # self() return the PID of the current process. inspect formats it nicely
+    IO.puts("#{inspect(self())}: Working....")
+
     client_socket
     # returns request as a string
     |> read_request
+    # returns response as a string
     |> Servy.Handler.handle()
+    # takes response string and sends it back out over client socket
     |> write_response(client_socket)
   end
 
   @doc """
-  receives a request on the client socket
+  receives a request on the client socket and returns request as a string
   """
   def read_request(client_socket) do
     # using zero denotes get all available bytes
