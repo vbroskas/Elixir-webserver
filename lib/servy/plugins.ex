@@ -49,6 +49,9 @@ defmodule Servy.Plugins do
   def track(%Conv{status: 404, path: path} = conv) do
     if Mix.env() != :test do
       IO.puts("Warning we have found a new path: #{path}")
+
+      # call 404 counter here
+      Servy.FourOhFourCounter.four_oh_four_found(path)
     end
 
     conv
