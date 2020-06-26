@@ -1,99 +1,114 @@
-defmodule Servy.PledgeServer do
-  # The functions in this module each run in different processes
-  @name :pledge_server
-
-  # -------FUNCTIONS CALLED BY CLIENT PROCESS----------------------
-  def start do
+defmodule Servy.GenericServer do
+  # --------GENERIC HELPER FUNCTIONS---------------------------------
+  def start(callback_module, initial_state, name) do
     # This function is called by the client to start the server process
-    IO.puts("Starting pledge server...")
-    pid = spawn(__MODULE__, :listen_loop, [])
-    Process.register(pid, @name)
+    pid = spawn(__MODULE__, :listen_loop, [callback_module, initial_state])
+    Process.register(pid, name)
     pid
   end
 
-  def create_pledge(name, amount) do
-    # THIS WILL RUN IN THE CLIENT PROCESS. Whatever process calls this function needs to send it's PID so we know who made the request.
-    # send a message to our server process
-    send(@name, {self(), :create_pledge, name, amount})
-
-    receive do
-      {:response, status} -> status
-    end
-  end
-
-  def recent_pledges() do
-    # things to keep in mind...
-    # sending a message is always asynchronous
-    # receive is a blocking call...receive will wait for a response from the server
-    # because we have both a send() and receive() in this function, that makes this function synchronous because it gets held up by receive
-
-    # using self() here denotes we want the message sent back to this functions process
-    send(@name, {self(), :recent_pledges})
-
-    receive do
-      {:response, cache} -> cache
-    end
-  end
-
-  def total_pledged do
-    # will send request to server process for total amount pledged. it expects a reply back
-    send(@name, {self(), :total_pledged})
-
-    # receive msg back from server process with total_pledged
-    receive do
-      {:response, total} -> total
-    end
-  end
-
   # remote procedure call, a synchronous request. generic function for making requets to our server process(loop)
+  # a helper function for all synchronous requests (sending and receiving a msg)
   def call(pid, message) do
-    send(pid, {self(), message})
+    send(pid, {:call, self(), message})
 
     receive do
       {:response, response} -> response
     end
   end
 
-  # -------SPAWNED SERVER PROCESS FUNCTIONS----------------------
-  def listen_loop(cache \\ []) do
+  # this is an asynchronous request. it sends a msg to the server and doesn't wait for a reply back
+  def cast(pid, message) do
+    send(pid, {:cast, message})
+  end
+
+  def listen_loop(callback_module, cache) do
     # modules in elixir CANT hold state, however processes can, so we need to store our cache in a process
     # https://online.pragmaticstudio.com/courses/elixir/modules/24 @ 6.22
     IO.puts("\nWaiting for msg...")
 
     receive do
-      # create new pledge
-      {sender, :create_pledge, name, amount} ->
-        # send pledge transation to outside service
-        {:ok, transaction_id} = send_pledge_to_service(name, amount)
-        # add pledge to local cache
-        cache = [{name, amount} | cache]
-        # send msg back to sender with ID of transation (or error)
-        send(sender, {:response, transaction_id})
-        IO.puts("#{name} pledged #{amount}")
-        IO.puts("cache is...#{inspect(cache)}")
-        # keep listen_loop running
-        listen_loop(cache)
+      {:call, sender, message} when is_pid(sender) ->
+        # callback_module represents whatever specific module is using our generic server. In this case it represents Servy.PledgeServer
+        {response, cache} = callback_module.handle_call(message, cache)
+        # send response to sender
+        send(sender, {:response, response})
+        # call listen_loop
+        listen_loop(callback_module, cache)
 
-      # get 3 recent pledges
-      {sender, :recent_pledges} ->
-        # the sender(senders pid) comes from the client process who is requesting the cache. we need to send the cache back to sender
-        # only send back the most recent 3 entries
-        send(sender, {:response, Enum.take(cache, 3)})
-        IO.puts("\nSend cache to #{inspect(sender)}!!!")
-        listen_loop(cache)
-
-      # get total amount pledged
-      {sender, :total_pledged} ->
-        # calculate total of pledges
-        total = Enum.reduce(cache, 0, fn {_name, amount}, acc -> acc + amount end)
-        send(sender, {:response, total})
-        listen_loop(cache)
+      # asynch request for clearing cache
+      {:cast, message} ->
+        cache = callback_module.handle_cast(message, cache)
+        listen_loop(callback_module, cache)
 
       # catch all other messages. If we don't catch them, all other msgs will build up in the processes mailbox
       unexpected ->
         IO.puts("Unknown msg: #{inspect(unexpected)}")
-        listen_loop()
+        listen_loop(callback_module, cache)
     end
+  end
+end
+
+defmodule Servy.PledgeServer do
+  # The functions in this module each run in different processes
+  @name :pledge_server
+  alias Servy.GenericServer
+
+  # -------FUNCTIONS CALLED BY CLIENT PROCESS----------------------
+  def start do
+    # This function is called by the client to start the server process
+    IO.puts("Starting pledge server...")
+
+    # using __MODULE__ here is saying that this module (Servy.PledgeServer) is the callback module to be used whenever our generic server sends messages back
+    GenericServer.start(__MODULE__, [], @name)
+  end
+
+  def clear do
+    GenericServer.cast(@name, :clear)
+  end
+
+  def create_pledge(name, amount) do
+    GenericServer.call(@name, {:create_pledge, name, amount})
+  end
+
+  def recent_pledges() do
+    GenericServer.call(@name, :recent_pledges)
+  end
+
+  def total_pledged do
+    GenericServer.call(@name, :total_pledged)
+  end
+
+  # -------SPAWNED SERVER PROCESS FUNCTIONS----------------------
+
+  def handle_cast(message, _cache) do
+    []
+  end
+
+  # get total amount pledged
+  def handle_call(:total_pledged, cache) do
+    # calculate total of pledges
+    total = Enum.reduce(cache, 0, fn {_name, amount}, acc -> acc + amount end)
+    {total, cache}
+  end
+
+  # get 3 most recent pledges
+  def handle_call(:recent_pledges, cache) do
+    # calculate total of pledges
+    recent_pledges = Enum.take(cache, 3)
+    {recent_pledges, cache}
+  end
+
+  # get 3 most recent pledges
+  def handle_call({:create_pledge, name, amount}, cache) do
+    # send pledge transation to outside service
+    {:ok, transaction_id} = send_pledge_to_service(name, amount)
+    # add pledge to local cache
+    cache = [{name, amount} | cache]
+    {transaction_id, cache}
+  end
+
+  def handle_call(:clear, cache) do
   end
 
   defp send_pledge_to_service(_name, _amount) do
@@ -108,6 +123,7 @@ alias Servy.PledgeServer
 
 # # SERVER PROCESS PID
 pid = PledgeServer.start()
+send(pid, {:stop, "poips"})
 
 IO.inspect(PledgeServer.create_pledge("joe", 5))
 IO.inspect(PledgeServer.create_pledge("ted", 10))
@@ -115,6 +131,8 @@ IO.inspect(PledgeServer.create_pledge("moe", 15))
 IO.inspect(PledgeServer.create_pledge("bob", 20))
 IO.inspect(PledgeServer.create_pledge("sam", 25))
 IO.inspect(PledgeServer.create_pledge("cue", 30))
+
+PledgeServer.clear()
 
 # IO.puts("\n-----------------------------")
 IO.inspect(PledgeServer.recent_pledges())
