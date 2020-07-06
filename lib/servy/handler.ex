@@ -62,28 +62,14 @@ defmodule Servy.Handler do
 
   # -------------------------------SENSOR ROUTES---------------------------------------
   def route(%Conv{method: "GET", path: "/sensors"} = conv) do
-    # list of animals
-    animal_locations =
-      ["animal1", "animal2", "animal3", "animal4", "animal5"]
-      |> Enum.map(&Task.async(fn -> Tracker.get_location(&1) end))
-      # get msg for each PID that is returned by Task.async
-      |> Enum.map(&Task.await(&1))
+    sensor_data = Servy.SensorServer.get_sensor_data()
 
-    # Task.async(fun) and Task.await(task) are the built in versions of our Fetch.asynch(fun) and Fetch.get_msg(pid)
-    # animal1_task_struct = Task.async(fn -> Servy.Tracker.get_location("animal1") end)
+    %{conv | status: 200, resp_body: inspect(sensor_data)}
 
-    # list of camera names
-    snapshots =
-      ["cam1", "cam2", "cam3", "cam4", "cam5"]
-      |> Enum.map(&Task.async(fn -> VideoCam.get_snapshot(&1) end))
-      # get msg for each PID that is returned by Fetch.asynch(fun)
-      |> Enum.map(&Task.await(&1))
-
-    # animal_location = Task.await(animal1_task_struct)
-
-    %{conv | status: 200, resp_body: inspect({snapshots, animal_locations})}
-
-    render(conv, "sensors.eex", snapshots: snapshots, animal_locations: animal_locations)
+    render(conv, "sensors.eex",
+      snapshots: sensor_data.snapshots,
+      animal_locations: sensor_data.animal_locations
+    )
   end
 
   def route(%Conv{method: "GET", path: "/broken"} = _conv) do

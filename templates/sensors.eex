@@ -3,11 +3,13 @@
 <ul>
 	<%= for snapshot <- snapshots do %>
 	<li><img src="<%= snapshot %>" alt="snapshot"></li>
+	<% end %>
 </ul>
 
 <h3>Animal locations</h3>
 
 <ul>
 	<%= for animal_location <- animal_locations do %>
-	<li>animal_location</li>
+	<li><%= inspect animal_location %></li>
+	<% end %>
 </ul>
