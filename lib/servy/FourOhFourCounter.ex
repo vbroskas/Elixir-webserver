@@ -58,9 +58,9 @@ defmodule Servy.FourOhFourCounter do
   end
 
   # --------------CLIENT INTERFACE FUNCTIONS --------------------------------
-  def start do
+  def start_link(_args) do
     IO.puts("Starting 404 counter via GenServer server...")
-    GenServer.start(__MODULE__, %{}, name: @name)
+    GenServer.start_link(__MODULE__, %{}, name: @name)
   end
 
   def four_oh_four_found(path) do

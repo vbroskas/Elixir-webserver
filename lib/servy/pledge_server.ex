@@ -1,19 +1,20 @@
 defmodule Servy.PledgeServer do
   @name :pledge_server
-  use GenServer
+  use GenServer, restart: :temporary
 
   defmodule State do
     defstruct cache_size: 3, pledges: []
   end
 
   # -------FUNCTIONS CALLED BY CLIENT PROCESS----------------------
-  def start do
+  def start_link(_arg) do
     # This function is called by the client to start the server process
     IO.puts("Starting pledge server...")
 
     # using __MODULE__ here is saying that this module (Servy.PledgeServer) is the callback module to be used whenever our generic server sends messages back
     # INIT: when start is called, the second arg here (%State{}) will be passed to init(). **start() will block until init() returns!!!**
-    GenServer.start(__MODULE__, %State{}, name: @name)
+    # by calling GenServer.start_link, it will start the genServer process and link it to whatever called our ^^ start_link() function
+    GenServer.start_link(__MODULE__, %State{}, name: @name)
   end
 
   def clear do

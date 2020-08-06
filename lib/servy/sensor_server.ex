@@ -4,14 +4,15 @@ defmodule Servy.SensorServer do
   use GenServer
 
   defmodule State do
-    defstruct interval: :timer.seconds(5), sensor_data: %{}
+    defstruct interval: :timer.minutes(30), sensor_data: %{}
   end
 
   # CLIENT INTERFACE
 
-  def start do
-    IO.puts("starting up sensor server...")
-    GenServer.start(__MODULE__, %State{}, name: @name)
+  def start_link(interval) do
+    IO.puts("starting up sensor server...Interval set to: #{interval}")
+    state = %State{interval: interval}
+    GenServer.start_link(__MODULE__, state, name: @name)
   end
 
   def get_sensor_data do
@@ -39,7 +40,7 @@ defmodule Servy.SensorServer do
   end
 
   def handle_cast({:set_interval, time}, state) do
-    new_state = %{state | interval: :timer.seconds(time)}
+    new_state = %{state | interval: :timer.minutes(time)}
     {:noreply, new_state}
   end
 
@@ -48,7 +49,7 @@ defmodule Servy.SensorServer do
   end
 
   def handle_info(:refresh, state) do
-    IO.puts("refreshing state...")
+    IO.puts("refreshing state...#{state.interval}")
     new_sensor_data = run_task_get_sensor_data()
     new_state = %{state | sensor_data: new_sensor_data}
     sched_refresh(state.interval)
@@ -57,11 +58,12 @@ defmodule Servy.SensorServer do
   end
 
   defp sched_refresh(interval) do
+    IO.puts("In sched ref....interval(seconds): #{interval}")
     # *** We want the state of this server to be updated every hour with new locations & snapshots
     # *** to do this we need to have this server send a :refresh message to itself every 60 mins. When that msg is resolved, it will then schedule another one
 
     # send_after takes 3 args--pid to send to, message, how long to wait to send msg
-    Process.send_after(self(), :refresh, interval)
+    Process.send_after(self(), :refresh, :timer.seconds(interval))
   end
 
   defp run_task_get_sensor_data do
